@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>iPad対応 ハーモニカ音テスト</title>
+  <style>
+    body {
+      background: #1e1e1e;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    .note {
+      display: inline-block;
+      margin: 10px;
+      padding: 20px 30px;
+      font-size: 1.2em;
+      background: #4a90e2;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .note:hover {
+      background: #357ABD;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 iPad対応 ハーモニカ音テスト</h1>
+  <p>音を鳴らすには下のノートをタップしてください（iOS対応）</p>
+  <div class="note" data-freq="261.63">C</div>
+  <div class="note" data-freq="293.66">D</div>
+  <div class="note" data-freq="329.63">E</div>
+  <div class="note" data-freq="349.23">F</div>
+  <div class="note" data-freq="392.00">G</div>
+  <div class="note" data-freq="440.00">A</div>
+  <div class="note" data-freq="493.88">B</div>
+  <div class="note" data-freq="523.25">C5</div>
+
+  <script>
+    let audioCtx;
+
+    document.querySelectorAll('.note').forEach(button => {
+      button.addEventListener('click', () => {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const freq = parseFloat(button.dataset.freq);
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 1);
+      });
+    });
+  </script>
+</body>
+</html>
