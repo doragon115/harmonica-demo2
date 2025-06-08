@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>インタラクティブ ハーモニカ配列表 (12キー対応)</title>
+<style>
+    body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        align-items: center; 
+        min-height: 100vh; 
+        background-color: #1e1e1e; 
+        margin: 0; 
+        padding: 10px; 
+        box-sizing: border-box; 
+    }
+    
+    .harmonica-container { 
+        background-color: #4a4a4a; 
+        padding: 15px 10px 10px 10px; 
+        border-radius: 10px; 
+        box-shadow: 0 5px 20px rgba(0,0,0,0.4), inset 0 2px 3px rgba(255,255,255,0.1); 
+        width: 100%; 
+        max-width: 95vw;
+        border: 1px solid #222; 
+        margin-bottom: 15px; 
+        overflow-x: auto;
+    }
+    
+    .harmonica-title { 
+        color: #e0e0e0; 
+        text-align: center; 
+        margin-bottom: 15px; 
+        font-size: 1.1em; 
+        font-weight: bold; 
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+    }
+    
+    .harmonica { 
+        display: flex; 
+        flex-direction: row; 
+        justify-content: center; 
+        background-color: #6f5f4f; 
+        padding: 8px 6px; 
+        border: 1px solid #4a3b2a; 
+        border-radius: 6px; 
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.3); 
+        min-width: 600px; /* スクロール可能な最小幅 */
+    }
+    
+    .hole { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        margin: 0 2px; 
+        padding: 0; 
+        background-color: transparent; 
+        min-width: 36px; 
+        flex: 1;
+        height: 220px; /* 固定高さを少し増やす */
+        position: relative; /* 子要素の絶対位置指定用 */
+    }
+    
+    .notes-column { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        width: 100%; 
+        height: 100%;
+        position: relative;
+    }
+    
+    /* 各行の固定位置を定義 */
+    .row-special-note { position: absolute; top: 0; }
+    .row-overblow { position: absolute; top: 26px; }
+    .row-blow { position: absolute; top: 52px; }
+    .row-hole-number { position: absolute; top: 78px; }
+    .row-draw { position: absolute; top: 104px; }
+    .row-bend-1 { position: absolute; top: 130px; }
+    .row-bend-2 { position: absolute; top: 156px; }
+    .row-bend-3 { position: absolute; top: 182px; }
+    
+    .note, .note-placeholder, .hole-number-display-inline { 
+        width: 32px; 
+        height: 24px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        font-weight: bold; 
+        font-size: 0.8em; 
+        border: 1px solid #333; 
+        border-radius: 4px; 
+        color: #e0e0e0; 
+        touch-action: manipulation; /* タッチ最適化 */
+    }
+    
+    .note { 
+        background-color: #5c5c5c; 
+        cursor: pointer; 
+        transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease; 
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3); 
+        min-height: 32px; /* タッチしやすいサイズ */
+    }
+    
+    .note:hover, .note:active { 
+        background-color: #5aaa7e; 
+        color: #ffffff; 
+        transform: scale(1.03); 
+        border-color: #4a9a6e; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.4); 
+    }
+    
+    .note.playing-sound { 
+        background-color: #ff9800; 
+        color: #000000; 
+        border-color: #e68a00; 
+        transform: scale(1.05); 
+        box-shadow: 0 0 10px rgba(255, 152, 0, 0.7); 
+    }
+    
+    .note.special { 
+        background-color: #787878; 
+        color: #ffffff; 
+        font-weight: bold; 
+    }
+    
+    .note.bend, .note.overblow { 
+        background-color: #4a4a4a; 
+        font-size: 0.75em; 
+    }
+    
+    .note-placeholder { 
+        border: none; 
+        background-color: transparent; 
+        box-shadow: none; 
+        visibility: hidden; /* 完全に非表示にする */
+    }
+    
+    .hole-number-display-inline { 
+        font-size: 0.9em; 
+        font-weight: bold; 
+        color: #e0e0e0; 
+        background-color: #504538; 
+        border-radius: 3px; 
+        border: 1px solid #403528; 
+        height: 20px; 
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); 
+    }
+    
+    .labels-info { 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: flex-start; /* 上揃えに変更 */
+        margin-right: 10px; 
+        padding: 5px 0; 
+        min-width: 55px;
+        height: 220px; /* 穴と同じ高さに */
+        position: relative;
+    }
+    
+    .note-type-label { 
+        position: absolute;
+        height: 24px; 
+        color: #b0b0b0; 
+        font-size: 0.75em; 
+        font-weight: normal; 
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-end; 
+        padding-right: 3px; 
+        width: 50px; 
+        text-shadow: 0 1px 1px rgba(0,0,0,0.3); 
+    }
+    
+    /* ラベルの固定位置（穴の行と対応） */
+    .label-special { top: 0; }
+    .label-overblow { top: 26px; }
+    .label-blow { top: 52px; }
+    .label-draw { top: 104px; }
+    .label-bend { top: 130px; }
+    
+    .key-selector-container { 
+        margin-bottom: 10px; 
+        text-align: center; 
+        display: block; 
+    }
+    
+    .key-selector-container label { 
+        color: #e0e0e0; 
+        margin-right: 8px; 
+        font-weight: bold; 
+        font-size: 0.95em;
+    }
+    
+    #keySelector { 
+        padding: 8px 12px; 
+        border-radius: 4px; 
+        border: 1px solid #555; 
+        background-color: #5c5c5c; 
+        color: #e0e0e0; 
+        font-size: 1em; 
+        cursor: pointer; 
+    }
+    
+    .sound-settings { 
+        margin-top: 15px; 
+        padding: 12px; 
+        background-color: #3a3a3a; 
+        border-radius: 8px; 
+        color: #e0e0e0; 
+        text-align: center; 
+        border: 1px solid #222; 
+        display: block; 
+        width: 100%;
+        max-width: 95vw;
+        box-sizing: border-box;
+    }
+    
+    .sound-settings label { 
+        margin-right: 8px; 
+        margin-left: 3px; 
+        font-size: 0.9em;
+    }
+    
+    .sound-settings select, .sound-settings input[type="checkbox"] { 
+        margin-right: 15px; 
+        padding: 5px; 
+        border-radius: 4px; 
+        border: 1px solid #555; 
+        background-color: #5c5c5c; 
+        color: #e0e0e0; 
+        vertical-align: middle; 
+    }
+    
+    .sound-settings input[type="checkbox"] { 
+        cursor: pointer; 
+    }
+
+    /* モバイル用のスクロールヒント */
+    .scroll-hint {
+        color: #ffc107;
+        font-size: 0.8em;
+        text-align: center;
+        margin-bottom: 10px;
+        opacity: 0.8;
+    }
+
+    /* 小さい画面での調整 */
+    @media (max-width: 480px) {
+        body {
+            padding: 5px;
+        }
+        
+        .harmonica-container {
+            padding: 10px 5px 5px 5px;
+        }
+        
+        .harmonica-title {
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        
+        .hole {
+            min-width: 32px;
+            margin: 0 1px;
+            height: 200px; /* 小さい画面用の高さ調整 */
+        }
+        
+        .labels-info {
+            height: 200px;
+        }
+        
+        /* 小さい画面用の行位置調整 */
+        .row-special-note { top: 0; }
+        .row-overblow { top: 24px; }
+        .row-blow { top: 48px; }
+        .row-hole-number { top: 72px; }
+        .row-draw { top: 96px; }
+        .row-bend-1 { top: 120px; }
+        .row-bend-2 { top: 144px; }
+        .row-bend-3 { top: 168px; }
+        
+        .label-special { top: 0; }
+        .label-overblow { top: 24px; }
+        .label-blow { top: 48px; }
+        .label-draw { top: 96px; }
+        .label-bend { top: 120px; }
+        
+        .note, .note-placeholder, .hole-number-display-inline {
+            width: 28px;
+            height: 22px;
+            font-size: 0.7em;
+            min-height: 28px;
+        }
+        
+        .labels-info {
+            min-width: 45px;
+            margin-right: 8px;
+        }
+        
+        .note-type-label {
+            width: 40px;
+            font-size: 0.7em;
+        }
+        
+        .sound-settings {
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .sound-settings label {
+            font-size: 0.85em;
+            margin-right: 5px;
+        }
+    }
+
+    /* 極小画面での調整 */
+    @media (max-width: 360px) {
+        .harmonica {
+            min-width: 550px;
+            padding: 6px 4px;
+        }
+        
+        .hole {
+            min-width: 28px;
+            height: 180px; /* 極小画面用の高さ調整 */
+        }
+        
+        .labels-info {
+            height: 180px;
+        }
+        
+        /* 極小画面用の行位置調整 */
+        .row-special-note { top: 0; }
+        .row-overblow { top: 22px; }
+        .row-blow { top: 44px; }
+        .row-hole-number { top: 66px; }
+        .row-draw { top: 88px; }
+        .row-bend-1 { top: 110px; }
+        .row-bend-2 { top: 132px; }
+        .row-bend-3 { top: 154px; }
+        
+        .label-special { top: 0; }
+        .label-overblow { top: 22px; }
+        .label-blow { top: 44px; }
+        .label-draw { top: 88px; }
+        .label-bend { top: 110px; }
+        
+        .note, .note-placeholder, .hole-number-display-inline {
+            width: 24px;
+            height: 20px;
+            font-size: 0.65em;
+            min-height: 26px;
+        }
+        
+        .labels-info {
+            min-width: 40px;
+        }
+        
+        .note-type-label {
+            width: 35px;
+        }
+    }
+</style>
+</head>
+<body>
+<div class="harmonica-container">
+    <div class="key-selector-container">
+        <label for="keySelector">キー:</label>
+        <select id="keySelector">
+            <option value="C" selected>C</option>
+            <option value="C#">C#</option>
+            <option value="D">D</option>
+            <option value="Eb">Eb</option>
+            <option value="E">E</option>
+            <option value="F">F</option>
+            <option value="F#">F#</option>
+            <option value="G">G</option>
+            <option value="Ab">Ab</option>
+            <option value="A">A</option>
+            <option value="Bb">Bb</option>
+            <option value="B">B</option>
+        </select>
+    </div>
+    <div class="harmonica-title">C Major Diatonic Harmonica</div>
+    <div class="scroll-hint">← 左右にスワイプして全体を表示 →</div>
+    <div style="display: flex;">
+        <div class="labels-info">
+            <div class="note-type-label label-special">Bend</div>
+            <div class="note-type-label label-overblow">Over</div>
+            <div class="note-type-label label-blow">Blow</div>
+            <div class="note-type-label label-draw">Draw</div>
+            <div class="note-type-label label-bend">Bend</div>
+        </div>
+        <div class="harmonica"></div>
+    </div>
+</div>
+<div class="sound-settings">
+    <label for="oscillatorType">音色:</label>
+    <select id="oscillatorType">
+        <option value="sine">サイン波</option>
+        <option value="square">矩形波</option>
+        <option value="sawtooth" selected>のこぎり波</option>
+        <option value="triangle">三角波</option>
+    </select>
+    <input type="checkbox" id="enableEnvelope">
+    <label for="enableEnvelope">エンベロープ有効</label>
+</div>
+<script>
+// 半音マップ
+const semitoneMap = { C:0, 'C#':1,'Db':1, D:2,'D#':3,'Eb':3, E:4, F:5,'F#':6,'Gb':6, G:7,'G#':8,'Ab':8, A:9,'A#':10,'Bb':10, B:11 };
+const semitoneToNameSharp = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const semitoneToNameFlat  = {1:'Db',3:'Eb',6:'Gb',8:'Ab',10:'Bb'};
+
+let audioContext, currentOscillator=null, currentGainNode=null, currentlyPlayingNoteKey=null;
+let selectedOscillatorType=document.getElementById('oscillatorType').value;
+let envelopeEnabled=document.getElementById('enableEnvelope').checked;
+let baseLayoutSemis, staticCFrequencies, currentLayout, harmonicaFrequencies;
+
+// Cキー配列（半音）
+const notesLayouts={ C: { 1:["D#",null,"C","D","Db",null,null],2:[null,null,"E","G","Gb","F",null],3:[null,null,"G","B","Bb","A","Ab"],4:["D#",null,"C","D","Db",null,null],5:["F#",null,"E","F",null,null,null],6:["A#",null,"G","A","Ab",null,null],7:[null,null,"C","B",null,null,null],8:[null,"Eb","E","D",null,null,null],9:[null,"Gb","G","F",null,null,null],10:["Bb","B","C","A","Db",null,null] } };
+// Cキー周波数
+const frequencies={ C:{ 'SN1':311.13,'B1':261.63,'D1':293.66,'DB1-1':277.18,'SN2':466.16,'OB2':440,'B2':329.63,'D2':392,'DB2-1':369.99,'DB2-2':349.23,'SN3':622.25,'OB3':523.25,'B3':392,'D3':493.88,'DB3-1':466.16,'DB3-2':440,'DB3-3':415.3,'SN4':622.25,'B4':523.25,'D4':587.33,'DB4-1':554.37,'SN5':739.99,'B5':659.25,'D5':698.46,'SN6':932.33,'B6':783.99,'D6':880,'DB6-1':830.61,'B7':1046.5,'D7':987.77,'OB8':1244.51,'B8':1318.51,'D8':1174.66,'OB9':1479.98,'B9':1567.98,'D9':1396.91,'SN10':1864.66,'OB10':1975.53,'B10':2093,'D10':1760,'DB10-1':2217.46 } };
+
+// AudioContext初期化
+function initAudioContext(){ 
+    if(!audioContext){ 
+        try{ 
+            audioContext=new (window.AudioContext||window.webkitAudioContext)(); 
+        }catch(e){ 
+            alert("Web Audio API初期化失敗"); 
+            return;
+        } 
+    } 
+    if(audioContext.state==='suspended'){ 
+        const msg=document.createElement('p');
+        msg.id='audioInitMessage';
+        msg.textContent='音を出すにはセルをタップしてください';
+        msg.style.cssText='color:#ffc107;text-align:center;position:fixed;bottom:20px;width:100%;background:rgba(0,0,0,0.8);padding:15px;z-index:1000;border-radius:8px;margin:0 10px;box-sizing:border-box;';
+        document.body.appendChild(msg);
+        const resume=()=>audioContext.resume().then(()=>{ msg.remove(); renderHarmonica(); });
+        document.body.addEventListener('click',resume,{once:true});
+        document.body.addEventListener('touchstart',resume,{once:true});
+        document.body.addEventListener('keydown',resume,{once:true}); 
+    }
+}
+
+// 再生／停止
+function playHarmonicaNote(nk){ 
+    if(!audioContext||audioContext.state!=='running'){ 
+        initAudioContext(); 
+        return;
+    } 
+    stopHarmonicaNote(); 
+    const freq=harmonicaFrequencies[nk]; 
+    if(!freq) return; 
+    currentOscillator=audioContext.createOscillator(); 
+    currentGainNode=audioContext.createGain(); 
+    currentOscillator.connect(currentGainNode); 
+    currentGainNode.connect(audioContext.destination); 
+    currentOscillator.type=selectedOscillatorType; 
+    currentOscillator.frequency.setValueAtTime(freq,audioContext.currentTime); 
+    if(envelopeEnabled){ 
+        const now=audioContext.currentTime; 
+        currentGainNode.gain.setValueAtTime(0,now); 
+        currentGainNode.gain.linearRampToValueAtTime(0.3,now+0.01); 
+        currentGainNode.gain.linearRampToValueAtTime(0.2,now+0.5);
+    } else{ 
+        currentGainNode.gain.setValueAtTime(0.3,audioContext.currentTime);
+    } 
+    currentOscillator.start(); 
+    currentlyPlayingNoteKey=nk; 
+}
+
+function stopHarmonicaNote(){ 
+    if(!audioContext||!currentOscillator) return; 
+    try{ 
+        currentOscillator.stop(); 
+        currentOscillator.disconnect(); 
+        currentGainNode.disconnect(); 
+    }catch{} 
+    document.querySelectorAll('.note.playing-sound').forEach(n=>n.classList.remove('playing-sound')); 
+    currentOscillator=null; 
+    currentGainNode=null; 
+    currentlyPlayingNoteKey=null; 
+}
+
+// リスナー追加
+function addClickListeners(){ 
+    const div=document.querySelector('.harmonica'); 
+    
+    // タッチイベントとクリックイベントの両方に対応
+    div.onclick=e=>{ 
+        const el=e.target.closest('.note'); 
+        if(!el) return; 
+        const nk=el.dataset.note; 
+        if(currentlyPlayingNoteKey===nk) 
+            stopHarmonicaNote(); 
+        else{ 
+            playHarmonicaNote(nk); 
+            el.classList.add('playing-sound'); 
+        }
+    }; 
+    
+    // タッチ専用イベント（モバイル最適化）
+    div.addEventListener('touchstart', e => {
+        e.preventDefault(); // スクロールとの競合を防ぐ
+        const el = e.target.closest('.note');
+        if (!el) return;
+        el.dispatchEvent(new Event('click'));
+    });
+    
+    div.querySelectorAll('.note').forEach(n=>{ 
+        n.setAttribute('tabindex','0'); 
+        n.addEventListener('keydown',e=>{ 
+            if(e.key==='Enter' || e.key===' ') {
+                e.preventDefault();
+                n.click(); 
+            }
+        }); 
+    }); 
+}
+
+// 描画
+function renderHarmonica(){ 
+    document.querySelector('.harmonica-title').textContent=`${document.getElementById('keySelector').value} Major Diatonic Harmonica`; 
+    const container=document.querySelector('.harmonica'); 
+    container.innerHTML=''; 
+    for(let i=1;i<=10;i++){ 
+        const hole=document.createElement('div'); 
+        hole.classList.add('hole'); 
+        const col=document.createElement('div'); 
+        col.classList.add('notes-column'); 
+        const data=currentLayout[i]; 
+        const types=['special','overblow','blow','draw','bend','bend','bend']; 
+        
+        // 各行に対応する要素を作成（固定位置配置）
+        const rowClasses = ['row-special-note', 'row-overblow', 'row-blow', 'row-hole-number', 'row-draw', 'row-bend-1', 'row-bend-2', 'row-bend-3'];
+        
+        // 上部のbend行
+        if(data[0]) {
+            const cell = document.createElement('div');
+            cell.classList.add('note', types[0], rowClasses[0]);
+            cell.textContent = data[0];
+            cell.dataset.note = `SN${i}`;
+            col.appendChild(cell);
+        }
+        
+        // overblow行
+        if(data[1]) {
+            const cell = document.createElement('div');
+            cell.classList.add('note', types[1], rowClasses[1]);
+            cell.textContent = data[1];
+            cell.dataset.note = `OB${i}`;
+            col.appendChild(cell);
+        }
+        
+        // blow行（必ず存在）
+        const blowCell = document.createElement('div');
+        blowCell.classList.add('note', types[2], rowClasses[2]);
+        blowCell.textContent = data[2];
+        blowCell.dataset.note = `B${i}`;
+        col.appendChild(blowCell);
+        
+        // 穴番号行（固定位置）
+        const holeNumCell = document.createElement('div');
+        holeNumCell.classList.add('hole-number-display-inline', rowClasses[3]);
+        holeNumCell.textContent = i;
+        col.appendChild(holeNumCell);
+        
+        // draw行（必ず存在）
+        const drawCell = document.createElement('div');
+        drawCell.classList.add('note', types[3], rowClasses[4]);
+        drawCell.textContent = data[3];
+        drawCell.dataset.note = `D${i}`;
+        col.appendChild(drawCell);
+        
+        // bend行たち（最大3つ）
+        let bendCount = 0;
+        for(let bendIdx = 4; bendIdx <= 6; bendIdx++) {
+            if(data[bendIdx]) {
+                bendCount++;
+                const cell = document.createElement('div');
+                cell.classList.add('note', types[bendIdx], rowClasses[bendIdx + 1]);
+                cell.textContent = data[bendIdx];
+                cell.dataset.note = `DB${i}-${bendCount}`;
+                col.appendChild(cell);
+            }
+        }
+        
+        hole.appendChild(col); 
+        container.appendChild(hole);
+    } 
+    addClickListeners(); 
+}
+
+// 初期化
+window.addEventListener('DOMContentLoaded',()=>{ 
+    // Cキーベース
+    baseLayoutSemis={}; 
+    Object.entries(notesLayouts.C).forEach(([h,arr])=>{ 
+        baseLayoutSemis[h]=arr.map(n=> n? semitoneMap[n]: null); 
+    }); 
+    staticCFrequencies=frequencies.C; 
+    currentLayout=notesLayouts.C; 
+    harmonicaFrequencies=staticCFrequencies; 
+    initAudioContext(); 
+    renderHarmonica(); 
+});
+
+// キー変更
+document.getElementById('keySelector').addEventListener('change',function(){ 
+    const k=this.value; 
+    const raw=semitoneMap[k]; 
+    const nameOff=raw; 
+    const freqOff=(raw>=6? raw-12: raw); 
+    currentLayout={}; 
+    Object.entries(baseLayoutSemis).forEach(([h,arr])=>{ 
+        currentLayout[h]=arr.map(s=> s===null? null: (()=>{ 
+            const n=(s+nameOff+12)%12; 
+            return semitoneToNameFlat[n]||semitoneToNameSharp[n]; 
+        })()); 
+    }); 
+    harmonicaFrequencies={}; 
+    Object.entries(staticCFrequencies).forEach(([nk,f])=>{ 
+        harmonicaFrequencies[nk]= f*Math.pow(2,freqOff/12); 
+    }); 
+    renderHarmonica(); 
+});
+
+// 設定変更
+document.getElementById('oscillatorType').addEventListener('change',e=>selectedOscillatorType=e.target.value);
+document.getElementById('enableEnvelope').addEventListener('change',e=>envelopeEnabled=e.target.checked);
+</script>
+</body>
+</html>
